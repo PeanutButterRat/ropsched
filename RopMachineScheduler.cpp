@@ -1,28 +1,47 @@
 #include "llvm/CodeGen/MachineScheduler.h"
+#include "llvm/Support/raw_ostream.h"
 
-#include <iostream>
+#include <queue>
 
 
-class RopSchedStrategy : public llvm::GenericScheduler {
+class Compare {
 public:
-  RopSchedStrategy(const llvm::MachineSchedContext *C) : llvm::GenericScheduler(C) {
-    std::cout << "[RopSchedStrategy] Instantiated." << std::endl;
+  bool operator() (llvm::SUnit *, llvm::SUnit *) {
+    return true;
   }
+};
 
-  void initialize(llvm::ScheduleDAGMI *DAG) override {
-    std::cout << "[RopSchedStrategy] Initializing DAG." << std::endl;
-    llvm::GenericScheduler::initialize(DAG);
-  }
+
+class RopSchedStrategy : public llvm::MachineSchedStrategy {
+  std::priority_queue<llvm::SUnit *, std::vector<llvm::SUnit *>, Compare> ReadyQ;
+
+public:
+  RopSchedStrategy(const llvm::MachineSchedContext *C) : llvm::MachineSchedStrategy() { }
+
+  void initialize(llvm::ScheduleDAGMI *DAG) override { }
 
   llvm::SUnit *pickNode(bool &IsTopNode) override {
-    std::cout << "[RopSchedStrategy] Picking node." << std::endl;
-    return GenericScheduler::pickNode(IsTopNode);
+    llvm::outs() << "[RopSchedStrategy] Picking node.\n";
+
+    if (ReadyQ.empty()) {
+      return nullptr;
+    }
+
+    llvm::SUnit *next = ReadyQ.top();
+    ReadyQ.pop();
+    IsTopNode = true;
+
+    return next;
   }
 
-  void schedNode(llvm::SUnit *SU, bool IsTopNode) override {
-    std::cout << "[RopSchedStrategy] Scheduling node." << std::endl;
-    llvm::GenericScheduler::schedNode(SU, IsTopNode);
+  void schedNode(llvm::SUnit *SU, bool IsTopNode) override { }
+
+  void releaseTopNode(llvm::SUnit *SU) override {
+    llvm::outs() << "[RopSchedStrategy] Release Top node.\n";
+    ReadyQ.push(SU);
   }
+
+  void releaseBottomNode(llvm::SUnit *SU) override { }
 };
 
 static llvm::ScheduleDAGInstrs *createRopMachineScheduler(llvm::MachineSchedContext *C) {

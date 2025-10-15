@@ -55,3 +55,7 @@ CMakeUserPresets.json
 
 # debug information files
 *.dwo
+
+
+# CLion/JetBrains
+.idea
