@@ -6,6 +6,7 @@ using namespace llvm;
 
 
 constexpr std::array<StringLiteral, 6> DataMovePrefixes { "PUSH", "POP", "MOV", "XCHG", "LEA", "CMOV" };
+constexpr std::array<StringLiteral, 13> ArithmeticPrefixes { "ADD", "SUB", "INC", "DEC", "SBB", "ADC", "MUL", "DIV", "IMUL", "IDIV", "XOR", "NEG", "NOT" };
 
 
 struct Compare {
@@ -13,6 +14,7 @@ struct Compare {
 
   enum InstrCategory {
     DataMove,
+    Arithmetic,
     Other,
   };
 
@@ -34,6 +36,8 @@ struct Compare {
     switch (Category) {
       case DataMove:
         return 1.0f;
+      case Arithmetic:
+        return 1.0f;
       default:
         return 0.0f;
     }
@@ -43,6 +47,12 @@ struct Compare {
     for (auto Prefix : DataMovePrefixes) {
       if (Name.starts_with(Prefix)) {
         return DataMove;
+      }
+    }
+
+    for (auto Prefix : ArithmeticPrefixes) {
+      if (Name.starts_with(Prefix)) {
+        return Arithmetic;
       }
     }
 
