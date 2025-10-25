@@ -12,7 +12,7 @@ public:
   explicit RopSchedStrategy(const MachineSchedContext *C) { }
 
   void initialize(ScheduleDAGMI *DAG) override {
-    ReadyQ = PriorityQueue<SUnit *, std::vector<SUnit *>, Compare>(Compare(DAG->TII));
+    ReadyQ = PriorityQueue<SUnit *, std::vector<SUnit *>, Compare>(Compare(DAG->TII, DAG->TRI));
   }
 
   SUnit *pickNode(bool &IsTopNode) override {

@@ -1,6 +1,6 @@
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
-
+#include "llvm/CodeGen/Register.h"
 
 using namespace llvm;
 
@@ -11,15 +11,21 @@ constexpr std::array<StringLiteral, 8> ShiftAndRotatePrefixes { "SHL", "SHR", "S
 
 struct Compare {
   const TargetInstrInfo *TII;
+  const TargetRegisterInfo *TRI;
 
-  enum InstrCategory {
+  enum class InstrCategory {
     DataMove,
     Arithmetic,
     ShiftAndRotate,
     Other,
   };
 
-  explicit Compare(const TargetInstrInfo *TII = nullptr) : TII(TII) {}
+  enum class InstrDestinationReg {
+    StackPointer,
+    Other,
+  };
+
+  explicit Compare(const TargetInstrInfo *TII = nullptr, const TargetRegisterInfo *TRI = nullptr) : TII(TII), TRI(TRI) {}
 
   bool operator() (SUnit *IA, SUnit *IB) const {
     return getInstrScore(IA) <= getInstrScore(IB);
@@ -30,41 +36,62 @@ struct Compare {
     assert(SU && "SUnit is null");
 
     MachineInstr *MI = SU->getInstr();
-    unsigned int Opcode = MI->getOpcode();
-    StringRef Name = TII->getName(Opcode);
-    InstrCategory Category = getInstrCategory(Name);
+    InstrCategory Category = getInstrCategory(MI);
+    InstrDestinationReg DestinationReg = getInstrTarget(MI);
 
     switch (Category) {
-      case DataMove:
-        return 1.0f;
-      case Arithmetic:
-        return 1.0f;
-      case ShiftAndRotate:
-        return 2.0f;
+      case InstrCategory::DataMove:
+        return (DestinationReg == InstrDestinationReg::StackPointer) ? 2.0f : 1.0f;
+      case InstrCategory::Arithmetic:
+        return (DestinationReg == InstrDestinationReg::StackPointer) ? 2.0f : 1.0f;
+      case InstrCategory::ShiftAndRotate:
+        return (DestinationReg == InstrDestinationReg::StackPointer) ? 3.0f : 1.0f;
       default:
         return 0.0f;
     }
   }
 
-  InstrCategory getInstrCategory(const StringRef Name) const {
+  InstrCategory getInstrCategory(MachineInstr *MI) const {
+    unsigned int Opcode = MI->getOpcode();
+    StringRef Name = TII->getName(Opcode);
+
     for (auto Prefix : DataMovePrefixes) {
       if (Name.starts_with(Prefix)) {
-        return DataMove;
+        return InstrCategory::DataMove;
       }
     }
 
     for (auto Prefix : ArithmeticPrefixes) {
       if (Name.starts_with(Prefix)) {
-        return Arithmetic;
+        return InstrCategory::Arithmetic;
       }
     }
 
     for (auto Prefix : ShiftAndRotatePrefixes) {
       if (Name.starts_with(Prefix)) {
-        return ShiftAndRotate;
+        return InstrCategory::ShiftAndRotate;
       }
     }
 
-    return Other;
+    return InstrCategory::Other;
+  }
+
+  InstrDestinationReg getInstrTarget(MachineInstr *MI) const {
+    const MCInstrDesc &Desc = MI->getDesc();
+
+    for (size_t i = 0; i < Desc.getNumDefs(); i++) {
+      MachineOperand Operand = MI->getOperand(i);
+      Register Reg = Operand.getReg();
+
+      if (Register::isPhysicalRegister(Reg)) {
+        std::string Name { TRI->getName(Reg) };
+
+        if (Name == "RSP") {
+          return InstrDestinationReg::StackPointer;
+        }
+      }
+    }
+
+    return InstrDestinationReg::Other;
   }
 };
