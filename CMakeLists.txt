@@ -9,7 +9,7 @@ find_package(LLVM REQUIRED CONFIG)
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
-add_library(${PROJECT_NAME} SHARED RopMachineScheduler.cpp)
+add_library(${PROJECT_NAME} SHARED RopMachineScheduler.cpp Compare.cpp)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "")
 
