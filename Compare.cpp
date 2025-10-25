@@ -7,7 +7,7 @@ using namespace llvm;
 
 constexpr std::array<StringLiteral, 6> DataMovePrefixes { "PUSH", "POP", "MOV", "XCHG", "LEA", "CMOV" };
 constexpr std::array<StringLiteral, 13> ArithmeticPrefixes { "ADD", "SUB", "INC", "DEC", "SBB", "ADC", "MUL", "DIV", "IMUL", "IDIV", "XOR", "NEG", "NOT" };
-
+constexpr std::array<StringLiteral, 8> ShiftAndRotatePrefixes { "SHL", "SHR", "SAR", "SAL", "ROR", "ROL", "RCR", "RCL" };
 
 struct Compare {
   const TargetInstrInfo *TII;
@@ -15,6 +15,7 @@ struct Compare {
   enum InstrCategory {
     DataMove,
     Arithmetic,
+    ShiftAndRotate,
     Other,
   };
 
@@ -38,6 +39,8 @@ struct Compare {
         return 1.0f;
       case Arithmetic:
         return 1.0f;
+      case ShiftAndRotate:
+        return 2.0f;
       default:
         return 0.0f;
     }
@@ -53,6 +56,12 @@ struct Compare {
     for (auto Prefix : ArithmeticPrefixes) {
       if (Name.starts_with(Prefix)) {
         return Arithmetic;
+      }
+    }
+
+    for (auto Prefix : ShiftAndRotatePrefixes) {
+      if (Name.starts_with(Prefix)) {
+        return ShiftAndRotate;
       }
     }
 
