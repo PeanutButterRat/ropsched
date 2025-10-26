@@ -17,7 +17,7 @@ constexpr std::array<std::array<float, 3>, 4> ScoreTable {{
 }};
 
 X86CompareGadgetInstrScore::X86CompareGadgetInstrScore(const TargetInstrInfo *TII, const TargetRegisterInfo *TRI, const unsigned *RD)
-: TII(TII), TRI(TRI), RD(RD) { }
+: TII(TII), TRI(TRI), GadgetFirstInstrDestReg(RD) { }
 
 bool X86CompareGadgetInstrScore::operator() (SUnit *IA, SUnit *IB) const {
   return getInstrScore(IA) <= getInstrScore(IB);
@@ -31,10 +31,7 @@ float X86CompareGadgetInstrScore::getInstrScore(SUnit *SU) const {
   InstrCategory Category = getInstrCategory(MI);
   InstrDestinationReg DestinationReg = getInstrTarget(MI);
 
-  unsigned Row = static_cast<unsigned>(Category);
-  unsigned Col = static_cast<unsigned>(DestinationReg);
-
-  return ScoreTable[Row][Col];
+  return ScoreTable[Category][DestinationReg];
 }
 
 X86CompareGadgetInstrScore::InstrCategory X86CompareGadgetInstrScore::getInstrCategory(MachineInstr *MI) const {
@@ -43,42 +40,42 @@ X86CompareGadgetInstrScore::InstrCategory X86CompareGadgetInstrScore::getInstrCa
 
   for (auto Prefix : DataMovePrefixes) {
     if (Name.starts_with(Prefix)) {
-      return InstrCategory::DataMove;
+      return DataMove;
     }
   }
 
   for (auto Prefix : ArithmeticPrefixes) {
     if (Name.starts_with(Prefix)) {
-      return InstrCategory::Arithmetic;
+      return Arithmetic;
     }
   }
 
   for (auto Prefix : ShiftAndRotatePrefixes) {
     if (Name.starts_with(Prefix)) {
-      return InstrCategory::ShiftAndRotate;
+      return ShiftAndRotate;
     }
   }
 
-  return InstrCategory::Other;
+  return Unscored;
 }
 
 X86CompareGadgetInstrScore::InstrDestinationReg X86CompareGadgetInstrScore::getInstrTarget(MachineInstr *MI) const {
   const MCInstrDesc &Desc = MI->getDesc();
-  InstrDestinationReg Destination = InstrDestinationReg::Other;
+  InstrDestinationReg Destination = Other;
 
   for (size_t i = 0; i < Desc.getNumDefs(); i++) {
     MachineOperand Operand = MI->getOperand(i);
     Register Reg = Operand.getReg();
 
-    if (Reg.id() == *RD) {
-      Destination = InstrDestinationReg::RD;
+    if (Reg.id() == *GadgetFirstInstrDestReg) {
+      Destination = GadgetFirstInstr;
     }
 
     if (Register::isPhysicalRegister(Reg)) {
       std::string Name { TRI->getName(Reg) };
 
       if (Name == "RSP") {
-        return InstrDestinationReg::StackPointer;
+        return StackPointer;
       }
     }
   }

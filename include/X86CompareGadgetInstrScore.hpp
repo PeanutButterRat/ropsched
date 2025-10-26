@@ -8,18 +8,18 @@
 struct X86CompareGadgetInstrScore {
   const llvm::TargetInstrInfo *TII;
   const llvm::TargetRegisterInfo *TRI;
-  const unsigned *RD;
+  const unsigned *GadgetFirstInstrDestReg;
 
-  enum class InstrCategory {
+  enum InstrCategory {
     DataMove,
     Arithmetic,
     ShiftAndRotate,
-    Other,
+    Unscored,
   };
 
-  enum class InstrDestinationReg {
+  enum InstrDestinationReg {
     StackPointer,
-    RD,
+    GadgetFirstInstr,
     Other,
   };
 
