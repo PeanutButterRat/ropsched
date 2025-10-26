@@ -10,7 +10,7 @@ void RopSchedStrategy::initialize(ScheduleDAGMI *DAG) {
   ReadyQ = PriorityQueue<SUnit *, std::vector<SUnit *>, X86CompareGadgetInstrScore>(Compare);
 }
 
-void RopSchedStrategy::enterMBB(llvm::MachineBasicBlock *MBB) {
+void RopSchedStrategy::enterMBB(MachineBasicBlock *MBB) {
   AssignedRD = false;
   RD = 0;
 }
@@ -24,7 +24,7 @@ SUnit *RopSchedStrategy::pickNode(bool &IsTopNode) {
   ReadyQ.pop();
   IsTopNode = true;
 
-  MachineInstr *MI = Next->getInstr();
+  const MachineInstr *MI = Next->getInstr();
   const MCInstrDesc &Desc = MI->getDesc();
 
   if (!AssignedRD) {

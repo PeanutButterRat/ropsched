@@ -4,6 +4,9 @@
 
 using namespace llvm;
 
+typedef X86CompareGadgetInstrScore::InstrCategory InstrCategory;
+typedef X86CompareGadgetInstrScore::InstrDestinationReg InstrDestinationReg;
+
 
 constexpr std::array<std::array<float, 3>, 4> InstructionScoringTable {{
   { 2.0f, 1.0f, 0.5f },
@@ -22,27 +25,27 @@ const std::array<std::pair<X86CompareGadgetInstrScore::InstrCategory, std::vecto
 X86CompareGadgetInstrScore::X86CompareGadgetInstrScore(const TargetInstrInfo *TII, const TargetRegisterInfo *TRI, const unsigned *RD)
 : TII(TII), TRI(TRI), GadgetFirstInstrDestReg(RD) { }
 
-bool X86CompareGadgetInstrScore::operator() (SUnit *IA, SUnit *IB) const {
+bool X86CompareGadgetInstrScore::operator() (const SUnit *IA, const SUnit *IB) const {
   return getInstrScore(IA) <= getInstrScore(IB);
 }
 
-float X86CompareGadgetInstrScore::getInstrScore(SUnit *SU) const {
+float X86CompareGadgetInstrScore::getInstrScore(const SUnit *SU) const {
   assert(TII && "TII is null");
   assert(SU && "SUnit is null");
 
-  MachineInstr *MI = SU->getInstr();
-  InstrCategory Category = getInstrCategory(MI);
-  InstrDestinationReg DestinationReg = getInstrTarget(MI);
+  const MachineInstr *MI = SU->getInstr();
+  const InstrCategory Category = getInstrCategory(MI);
+  const InstrDestinationReg DestinationReg = getInstrTarget(MI);
 
   return InstructionScoringTable[Category][DestinationReg];
 }
 
-X86CompareGadgetInstrScore::InstrCategory X86CompareGadgetInstrScore::getInstrCategory(MachineInstr *MI) const {
-  unsigned int Opcode = MI->getOpcode();
-  StringRef Name = TII->getName(Opcode);
+InstrCategory X86CompareGadgetInstrScore::getInstrCategory(const MachineInstr *MI) const {
+  const unsigned Opcode = MI->getOpcode();
+  const StringRef Name = TII->getName(Opcode);
 
-  for (auto [Category, Prefixes] : InstructionPrefixes) {
-    for (auto Prefix : Prefixes) {
+  for (const auto& [Category, Prefixes] : InstructionPrefixes) {
+    for (const auto& Prefix : Prefixes) {
       if (Name.starts_with(Prefix)) {
         return Category;
       }
@@ -52,20 +55,20 @@ X86CompareGadgetInstrScore::InstrCategory X86CompareGadgetInstrScore::getInstrCa
   return Unscored;
 }
 
-X86CompareGadgetInstrScore::InstrDestinationReg X86CompareGadgetInstrScore::getInstrTarget(MachineInstr *MI) const {
+InstrDestinationReg X86CompareGadgetInstrScore::getInstrTarget(const MachineInstr *MI) const {
   const MCInstrDesc &Desc = MI->getDesc();
   InstrDestinationReg Destination = Other;
 
   for (size_t i = 0; i < Desc.getNumDefs(); i++) {
-    MachineOperand Operand = MI->getOperand(i);
-    Register Reg = Operand.getReg();
+    const MachineOperand Operand = MI->getOperand(i);
+    const Register Reg = Operand.getReg();
 
     if (Reg.id() == *GadgetFirstInstrDestReg) {
       Destination = GadgetFirstInstr;
     }
 
     if (Register::isPhysicalRegister(Reg)) {
-      const std::string Name { TRI->getName(Reg) };
+      const StringRef Name { TRI->getName(Reg) };
 
       if (Name == "RSP") {
         return StackPointer;

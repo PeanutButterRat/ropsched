@@ -26,13 +26,13 @@ struct X86CompareGadgetInstrScore {
   explicit X86CompareGadgetInstrScore(const llvm::TargetInstrInfo *TII = nullptr,
     const llvm::TargetRegisterInfo *TRI = nullptr, const unsigned *RD = nullptr);
 
-  bool operator() (llvm::SUnit *IA, llvm::SUnit *IB) const;
+  bool operator() (const llvm::SUnit *IA, const llvm::SUnit *IB) const;
 
-  float getInstrScore(llvm::SUnit *SU) const;
+  float getInstrScore(const llvm::SUnit *SU) const;
 
-  InstrCategory getInstrCategory(llvm::MachineInstr *MI) const;
+  InstrCategory getInstrCategory(const llvm::MachineInstr *MI) const;
 
-  InstrDestinationReg getInstrTarget(llvm::MachineInstr *MI) const;
+  InstrDestinationReg getInstrTarget(const llvm::MachineInstr *MI) const;
 };
 
 #endif
