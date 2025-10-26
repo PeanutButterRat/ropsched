@@ -2,19 +2,22 @@
 
 #include "X86CompareGadgetInstrScore.hpp"
 
-
 using namespace llvm;
 
-constexpr std::array<StringLiteral, 6> DataMovePrefixes { "PUSH", "POP", "MOV", "XCHG", "LEA", "CMOV" };
-constexpr std::array<StringLiteral, 13> ArithmeticPrefixes { "ADD", "SUB", "INC", "DEC", "SBB", "ADC", "MUL", "DIV", "IMUL", "IDIV", "XOR", "NEG", "NOT" };
-constexpr std::array<StringLiteral, 8> ShiftAndRotatePrefixes { "SHL", "SHR", "SAR", "SAL", "ROR", "ROL", "RCR", "RCL" };
 
-constexpr std::array<std::array<float, 3>, 4> ScoreTable {{
+constexpr std::array<std::array<float, 3>, 4> InstructionScoringTable {{
   { 2.0f, 1.0f, 0.5f },
   { 2.0f, 1.0f, 0.5f },
   { 3.0f, 2.0f, 0.5f },
   { 0.0f, 0.0f, 0.5f },
 }};
+
+const std::array<std::pair<X86CompareGadgetInstrScore::InstrCategory, std::vector<StringLiteral>>, 3> InstructionPrefixes {{
+  {X86CompareGadgetInstrScore::DataMove, { "PUSH", "POP", "MOV", "XCHG", "LEA", "CMOV" }},
+  {X86CompareGadgetInstrScore::Arithmetic, { "ADD", "SUB", "INC", "DEC", "SBB", "ADC", "MUL", "DIV", "IMUL", "IDIV", "XOR", "NEG", "NOT" }},
+  {X86CompareGadgetInstrScore::ShiftAndRotate, { "SHL", "SHR", "SAR", "SAL", "ROR", "ROL", "RCR", "RCL" }},
+}};
+
 
 X86CompareGadgetInstrScore::X86CompareGadgetInstrScore(const TargetInstrInfo *TII, const TargetRegisterInfo *TRI, const unsigned *RD)
 : TII(TII), TRI(TRI), GadgetFirstInstrDestReg(RD) { }
@@ -31,28 +34,18 @@ float X86CompareGadgetInstrScore::getInstrScore(SUnit *SU) const {
   InstrCategory Category = getInstrCategory(MI);
   InstrDestinationReg DestinationReg = getInstrTarget(MI);
 
-  return ScoreTable[Category][DestinationReg];
+  return InstructionScoringTable[Category][DestinationReg];
 }
 
 X86CompareGadgetInstrScore::InstrCategory X86CompareGadgetInstrScore::getInstrCategory(MachineInstr *MI) const {
   unsigned int Opcode = MI->getOpcode();
   StringRef Name = TII->getName(Opcode);
 
-  for (auto Prefix : DataMovePrefixes) {
-    if (Name.starts_with(Prefix)) {
-      return DataMove;
-    }
-  }
-
-  for (auto Prefix : ArithmeticPrefixes) {
-    if (Name.starts_with(Prefix)) {
-      return Arithmetic;
-    }
-  }
-
-  for (auto Prefix : ShiftAndRotatePrefixes) {
-    if (Name.starts_with(Prefix)) {
-      return ShiftAndRotate;
+  for (auto [Category, Prefixes] : InstructionPrefixes) {
+    for (auto Prefix : Prefixes) {
+      if (Name.starts_with(Prefix)) {
+        return Category;
+      }
     }
   }
 
@@ -72,7 +65,7 @@ X86CompareGadgetInstrScore::InstrDestinationReg X86CompareGadgetInstrScore::getI
     }
 
     if (Register::isPhysicalRegister(Reg)) {
-      std::string Name { TRI->getName(Reg) };
+      const std::string Name { TRI->getName(Reg) };
 
       if (Name == "RSP") {
         return StackPointer;
