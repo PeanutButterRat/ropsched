@@ -9,11 +9,15 @@
 
 class RopSchedStrategy : public llvm::MachineSchedStrategy {
   llvm::PriorityQueue<llvm::SUnit *, std::vector<llvm::SUnit *>, X86CompareGadgetInstrScore> ReadyQ;
+  bool AssignedRD = false;
+  unsigned RD = 0;
 
 public:
   explicit RopSchedStrategy(const llvm::MachineSchedContext *C);
 
   void initialize(llvm::ScheduleDAGMI *DAG) override;
+
+  void enterMBB(llvm::MachineBasicBlock *MBB) override;
 
   llvm::SUnit *pickNode(bool &IsTopNode) override;
 

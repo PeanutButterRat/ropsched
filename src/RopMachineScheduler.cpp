@@ -6,7 +6,13 @@ using namespace llvm;
 RopSchedStrategy::RopSchedStrategy(const MachineSchedContext *C) { }
 
 void RopSchedStrategy::initialize(ScheduleDAGMI *DAG) {
-  ReadyQ = PriorityQueue<SUnit *, std::vector<SUnit *>, X86CompareGadgetInstrScore>(X86CompareGadgetInstrScore(DAG->TII, DAG->TRI));
+  const X86CompareGadgetInstrScore Compare { DAG->TII, DAG->TRI, &this->RD };
+  ReadyQ = PriorityQueue<SUnit *, std::vector<SUnit *>, X86CompareGadgetInstrScore>(Compare);
+}
+
+void RopSchedStrategy::enterMBB(llvm::MachineBasicBlock *MBB) {
+  AssignedRD = false;
+  RD = 0;
 }
 
 SUnit *RopSchedStrategy::pickNode(bool &IsTopNode) {
@@ -17,6 +23,22 @@ SUnit *RopSchedStrategy::pickNode(bool &IsTopNode) {
   SUnit *Next = ReadyQ.top();
   ReadyQ.pop();
   IsTopNode = true;
+
+  MachineInstr *MI = Next->getInstr();
+  const MCInstrDesc &Desc = MI->getDesc();
+
+  if (!AssignedRD) {
+    for (unsigned Def = 0; Def < Desc.getNumDefs(); Def++) {
+      MachineOperand Operand = MI->getOperand(Def);
+      Register Reg = Operand.getReg();
+      RD = Reg.id();
+      AssignedRD = true;
+
+      if (Register::isPhysicalRegister(Reg)) {
+        break;
+      }
+    }
+  }
 
   return Next;
 }

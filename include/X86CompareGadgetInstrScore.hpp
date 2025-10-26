@@ -8,6 +8,7 @@
 struct X86CompareGadgetInstrScore {
   const llvm::TargetInstrInfo *TII;
   const llvm::TargetRegisterInfo *TRI;
+  const unsigned *RD;
 
   enum class InstrCategory {
     DataMove,
@@ -18,10 +19,12 @@ struct X86CompareGadgetInstrScore {
 
   enum class InstrDestinationReg {
     StackPointer,
+    RD,
     Other,
   };
 
-  explicit X86CompareGadgetInstrScore(const llvm::TargetInstrInfo *TII = nullptr, const llvm::TargetRegisterInfo *TRI = nullptr);
+  explicit X86CompareGadgetInstrScore(const llvm::TargetInstrInfo *TII = nullptr,
+    const llvm::TargetRegisterInfo *TRI = nullptr, const unsigned *RD = nullptr);
 
   bool operator() (llvm::SUnit *IA, llvm::SUnit *IB) const;
 

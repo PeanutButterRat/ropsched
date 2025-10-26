@@ -9,8 +9,15 @@ constexpr std::array<StringLiteral, 6> DataMovePrefixes { "PUSH", "POP", "MOV", 
 constexpr std::array<StringLiteral, 13> ArithmeticPrefixes { "ADD", "SUB", "INC", "DEC", "SBB", "ADC", "MUL", "DIV", "IMUL", "IDIV", "XOR", "NEG", "NOT" };
 constexpr std::array<StringLiteral, 8> ShiftAndRotatePrefixes { "SHL", "SHR", "SAR", "SAL", "ROR", "ROL", "RCR", "RCL" };
 
+constexpr std::array<std::array<float, 3>, 4> ScoreTable {{
+  { 2.0f, 1.0f, 0.5f },
+  { 2.0f, 1.0f, 0.5f },
+  { 3.0f, 2.0f, 0.5f },
+  { 0.0f, 0.0f, 0.5f },
+}};
 
-X86CompareGadgetInstrScore::X86CompareGadgetInstrScore(const TargetInstrInfo *TII, const TargetRegisterInfo *TRI) : TII(TII), TRI(TRI) { }
+X86CompareGadgetInstrScore::X86CompareGadgetInstrScore(const TargetInstrInfo *TII, const TargetRegisterInfo *TRI, const unsigned *RD)
+: TII(TII), TRI(TRI), RD(RD) { }
 
 bool X86CompareGadgetInstrScore::operator() (SUnit *IA, SUnit *IB) const {
   return getInstrScore(IA) <= getInstrScore(IB);
@@ -24,16 +31,10 @@ float X86CompareGadgetInstrScore::getInstrScore(SUnit *SU) const {
   InstrCategory Category = getInstrCategory(MI);
   InstrDestinationReg DestinationReg = getInstrTarget(MI);
 
-  switch (Category) {
-    case InstrCategory::DataMove:
-      return (DestinationReg == InstrDestinationReg::StackPointer) ? 2.0f : 1.0f;
-    case InstrCategory::Arithmetic:
-      return (DestinationReg == InstrDestinationReg::StackPointer) ? 2.0f : 1.0f;
-    case InstrCategory::ShiftAndRotate:
-      return (DestinationReg == InstrDestinationReg::StackPointer) ? 3.0f : 1.0f;
-    default:
-      return 0.0f;
-  }
+  unsigned Row = static_cast<unsigned>(Category);
+  unsigned Col = static_cast<unsigned>(DestinationReg);
+
+  return ScoreTable[Row][Col];
 }
 
 X86CompareGadgetInstrScore::InstrCategory X86CompareGadgetInstrScore::getInstrCategory(MachineInstr *MI) const {
@@ -63,10 +64,15 @@ X86CompareGadgetInstrScore::InstrCategory X86CompareGadgetInstrScore::getInstrCa
 
 X86CompareGadgetInstrScore::InstrDestinationReg X86CompareGadgetInstrScore::getInstrTarget(MachineInstr *MI) const {
   const MCInstrDesc &Desc = MI->getDesc();
+  InstrDestinationReg Destination = InstrDestinationReg::Other;
 
   for (size_t i = 0; i < Desc.getNumDefs(); i++) {
     MachineOperand Operand = MI->getOperand(i);
     Register Reg = Operand.getReg();
+
+    if (Reg.id() == *RD) {
+      Destination = InstrDestinationReg::RD;
+    }
 
     if (Register::isPhysicalRegister(Reg)) {
       std::string Name { TRI->getName(Reg) };
@@ -77,5 +83,5 @@ X86CompareGadgetInstrScore::InstrDestinationReg X86CompareGadgetInstrScore::getI
     }
   }
 
-  return InstrDestinationReg::Other;
+  return Destination;
 }
