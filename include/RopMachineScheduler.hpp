@@ -9,8 +9,8 @@
 
 class RopSchedStrategy : public llvm::MachineSchedStrategy {
   llvm::PriorityQueue<llvm::SUnit *, std::vector<llvm::SUnit *>, X86CompareGadgetInstrScore> ReadyQ;
-  bool AssignedRD = false;
-  unsigned RD = 0;
+  bool AssignedGadgetFirstInstrDestReg = false;
+  unsigned GadgetFirstInstrDestReg = 0;
 
 public:
   explicit RopSchedStrategy(const llvm::MachineSchedContext *C);
